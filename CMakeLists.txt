@@ -7,22 +7,50 @@ include (DetectCPPZMQVersion)
 project(cppzmq VERSION ${DETECTED_CPPZMQ_VERSION})
 
 if (NOT TARGET libzmq AND NOT TARGET libzmq-static)
+  include(FetchContent)
+
   find_package(ZeroMQ QUIET)
 
-  # libzmq autotools install: fallback to pkg-config
-  if(NOT ZeroMQ_FOUND)
-    message(STATUS "CMake libzmq package not found, trying again with pkg-config (normal install of zeromq)")
-    list (APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/libzmq-pkg-config)
-    find_package(ZeroMQ REQUIRED)
-  endif()
+  if (NOT cppzmq_FOUND)
+    message(STATUS "libzmq not found. Fetching libzmq...")
+    
+    FetchContent_Declare(
+        libzmq
+        GIT_REPOSITORY https://github.com/zeromq/libzmq.git
+        GIT_TAG        v4.3.5
+    )
+    
+    FetchContent_MakeAvailable(libzmq)
 
-  # TODO "REQUIRED" above should already cause a fatal failure if not found, but this doesn't seem to work
-  if(NOT ZeroMQ_FOUND)
-    message(FATAL_ERROR "ZeroMQ was not found, neither as a CMake package nor via pkg-config")
-  endif()
+    # Check if the patch can be applied
+    execute_process(
+        COMMAND git apply --check ${CMAKE_CURRENT_SOURCE_DIR}/patches/libzmq.patch
+        WORKING_DIRECTORY ${libzmq_SOURCE_DIR}
+        RESULT_VARIABLE patch_check_result
+        OUTPUT_QUIET
+        ERROR_QUIET
+    )
 
-  if (ZeroMQ_FOUND AND NOT (TARGET libzmq OR TARGET libzmq-static))
-    message(FATAL_ERROR "ZeroMQ version not supported!")
+    if (patch_check_result EQUAL 0)
+        message(STATUS "Applying patch to libzmq...")
+        execute_process(
+            COMMAND git apply ${CMAKE_CURRENT_SOURCE_DIR}/patches/libzmq.patch
+            WORKING_DIRECTORY ${libzmq_SOURCE_DIR}
+            RESULT_VARIABLE patch_apply_result
+        )
+
+        if (NOT patch_apply_result EQUAL 0)
+            message(FATAL_ERROR "Failed to apply patch to libzmq.")
+        endif()
+    else()
+        message(STATUS "Patch already applied or not needed.")
+    endif()
+
+    set(CPPZMQ_INCLUDE_DIRS ${libzmq_SOURCE_DIR}/include ${libzmq_BINARY_DIR})
+    set(CPPZMQ_LIBRARIES ${libzmq_BINARY_DIR}/libzmq.a)
+    
+  else()
+    message(STATUS "libzmq found.")
   endif()
 endif()
 
