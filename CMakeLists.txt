@@ -48,13 +48,16 @@ if (NOT TARGET libzmq AND NOT TARGET libzmq-static)
       else()
           message(STATUS "Patch already applied or not needed.")
       endif()
+    else()
+      message(STATUS "libzmq already populated, skipping fetch and patch.")
+    endif()
 
-      # Add libzmq as a subdirectory so that it can be built
+    if (NOT TARGET libzmq)
       add_subdirectory(${libzmq_SOURCE_DIR} ${libzmq_BINARY_DIR})
     endif()
+    
     set(CPPZMQ_INCLUDE_DIRS ${libzmq_SOURCE_DIR}/include ${libzmq_BINARY_DIR})
     set(CPPZMQ_LIBRARIES ${libzmq_BINARY_DIR}/libzmq.a)
-    
   else()
     message(STATUS "libzmq found.")
   endif()
