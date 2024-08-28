@@ -20,32 +20,38 @@ if (NOT TARGET libzmq AND NOT TARGET libzmq-static)
         GIT_TAG        v4.3.5
     )
     
-    FetchContent_MakeAvailable(libzmq)
+    # FetchContent_MakeAvailable(libzmq)
+    FetchContent_GetProperties(libzmq)
+    if (NOT libzmq_POPULATED)
+      FetchContent_Populate(libzmq)
 
-    # Check if the patch can be applied
-    execute_process(
-        COMMAND git apply --check ${CMAKE_CURRENT_SOURCE_DIR}/patches/libzmq.patch
-        WORKING_DIRECTORY ${libzmq_SOURCE_DIR}
-        RESULT_VARIABLE patch_check_result
-        OUTPUT_QUIET
-        ERROR_QUIET
-    )
+      # Check if the patch can be applied
+      execute_process(
+          COMMAND git apply --check ${CMAKE_CURRENT_SOURCE_DIR}/patches/libzmq.patch
+          WORKING_DIRECTORY ${libzmq_SOURCE_DIR}
+          RESULT_VARIABLE patch_check_result
+          OUTPUT_QUIET
+          ERROR_QUIET
+      )
 
-    if (patch_check_result EQUAL 0)
-        message(STATUS "Applying patch to libzmq...")
-        execute_process(
-            COMMAND git apply ${CMAKE_CURRENT_SOURCE_DIR}/patches/libzmq.patch
-            WORKING_DIRECTORY ${libzmq_SOURCE_DIR}
-            RESULT_VARIABLE patch_apply_result
-        )
+      if (patch_check_result EQUAL 0)
+          message(STATUS "Applying patch to libzmq...")
+          execute_process(
+              COMMAND git apply ${CMAKE_CURRENT_SOURCE_DIR}/patches/libzmq.patch
+              WORKING_DIRECTORY ${libzmq_SOURCE_DIR}
+              RESULT_VARIABLE patch_apply_result
+          )
 
-        if (NOT patch_apply_result EQUAL 0)
-            message(FATAL_ERROR "Failed to apply patch to libzmq.")
-        endif()
-    else()
-        message(STATUS "Patch already applied or not needed.")
+          if (NOT patch_apply_result EQUAL 0)
+              message(FATAL_ERROR "Failed to apply patch to libzmq.")
+          endif()
+      else()
+          message(STATUS "Patch already applied or not needed.")
+      endif()
+
+      # Add libzmq as a subdirectory so that it can be built
+      add_subdirectory(${libzmq_SOURCE_DIR} ${libzmq_BINARY_DIR})
     endif()
-
     set(CPPZMQ_INCLUDE_DIRS ${libzmq_SOURCE_DIR}/include ${libzmq_BINARY_DIR})
     set(CPPZMQ_LIBRARIES ${libzmq_BINARY_DIR}/libzmq.a)
     
